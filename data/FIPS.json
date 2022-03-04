@@ -1,0 +1,72 @@
+[
+    {
+        "FIPS": 25001,
+        "CountyName": " Barnstable",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25003,
+        "CountyName": " Berkshire",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25005,
+        "CountyName": " Bristol",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25007,
+        "CountyName": " Dukes",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25009,
+        "CountyName": " Essex",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25011,
+        "CountyName": " Franklin",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25013,
+        "CountyName": " Hampden",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25015,
+        "CountyName": " Hampshire",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25017,
+        "CountyName": " Middlesex",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25019,
+        "CountyName": " Nantucket",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25021,
+        "CountyName": " Norfolk ",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25023,
+        "CountyName": " Plymouth",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25025,
+        "CountyName": " Suffolk ",
+        "State": " MA"
+    },
+    {
+        "FIPS": 25027,
+        "CountyName": " Worcester",
+        "State": " MA"
+    }
+]

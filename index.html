@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <script src="./libs/d3.js"></script>
     <script src="https://d3js.org/topojson.v1.min.js"></script>
+
+
     <title>MA Map</title>
     <style>
-        #tooltip {
-            position: absolute;
+        .tooltip {
+            position: fixed;
             opacity: 0;
             top: 0;
             left: 0;
@@ -22,23 +25,40 @@
             border-radius: 2px;
             line-height: 1;
         }
-        
+
         path {
             stroke-width: .5px;
             stroke: black
         }
-        
+
         path:hover {
             opacity: .6;
             stroke: black;
             stroke-width: 4px;
         }
+
+        .center {
+            text-align: center;
+        }
+
+        #pop {
+            padding: 4px;
+            float: right;
+            visibility: hidden;
+            border: 4px solid black;
+
+        }
+
+        #svgCounty {
+            position: absolute;
+        }
     </style>
 </head>
 
 <body>
-    <div id="tooltip"></div>
+
     <script>
+
         /*-------------------------------------------------------*/
         /*------------------- Window setting --------------------*/
         /*-------------------------------------------------------*/
@@ -56,19 +76,21 @@
 
         // a topojson file containing population of each town in different years
         const MA_counties = "./data/towns.topojson"
-            // gini index per county
-        const gini_index = "./data/gini_index.csv"
+
+        //a json file with fips data by county name and state
+        const FIPS = "./data/FIPS.json"
 
 
         // open both files
         Promise.all([
             d3.json(MA_counties),
-            d3.csv(gini_index)
+            d3.json(FIPS),
         ]).then(data => {
+
             // topology data
             const topo_data = data[0];
-            // gini index data
-            const csv_data = data[1];
+            // fips data
+            const fips_data = data[1];
 
             /*-------------------------------------------------------*/
             /*-----------------Topojson data handling----------------*/
@@ -104,57 +126,186 @@
             /*-------------------------------------------------------*/
             ////https://observablehq.com/@d3/working-with-color
             var colorInterpolator = d3.interpolateRgbBasis(["blue", "steelblue", "green", "purple", "red"])
-                // if the data is scaled using log scale
-            let logScale = d3.scaleLog()
-                .domain(d3.extent(geojson.features, (d) => {
-                    return d['properties']['POP2010']
-                }))
 
-            // if the data is scaled using linear scale
-            let linearScale = d3.scaleLinear()
-                .domain(d3.extent(geojson.features, (d) => {
-                    return d['properties']['POP2010']
-                }))
 
             /*-------------------------------------------------------*/
             /*---------------------- Tooltip ------------------------*/
             /*-------------------------------------------------------*/
             const tooltip = d3.select("#tooltip");
 
+
             /*--------------------------------------------------------*/
             /*----------------- channelling marks --------------------*/
             /*--------------------------------------------------------*/
 
             // Append a SVG element to body, then append a path for the boundaries
-            let svg = d3.select("body").append("svg")
+
+            let svg1980 = d3.select("#svg1980").append("svg")
                 .attr("width", "100vw")
                 .attr("height", "100vh");
 
-            svg.selectAll("path")
-                .data(geojson.features)
-                .enter()
-                .append("path")
-                .attr("d", d => geoPath_generator(d))
-                //.attr("fill", d => colorInterpolator(logScale(d['properties']['POP2010'])))
-                .attr("fill", d => colorInterpolator(linearScale(d['properties']['POP2010'])))
-                .on("mouseenter", (m, d) => {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", .9)
-                    tooltip.html(d['properties']['TOWN'])
-                        .style("left", m.clientX + "px")
-                        .style("top", m.clientY + "px");
+            let svgChange = d3.select("#svgChange").append("svg")
+                .attr("width", "100vw")
+                .attr("height", "100vh");
+
+            let svgCounty = d3.select("#svgCounty").append("svg")
+                .attr("width", "100vw")
+                .attr("height", "100vh");
+
+
+            // Create Geo function with year and svg params
+            function createGeo(year, svg, svgName, type = 'linear', pastYear) {
+                //County Colors
+                const county_colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'brown', 'CornflowerBlue', 'DarkBlue', 'DarkSeaGreen', 'Cyan', 'DarkOliveGreen', 'DarkViolet', 'AntiqueWhite'];
+                const fipsColors = fips_data.map((d, i) => {
+                    const county = {
+                        fips: d.FIPS,
+                        name: d.CountyName,
+                        color: county_colors[i]
+                    };
+                    return county;
                 })
-                .on("mousemove", (m, d) => {
-                    tooltip.style("opacity", .9)
-                })
-                .on("mouseout", (m, d) => {
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", 0)
-                })
+                // if the data is scaled using log scale
+                let logScale = d3.scaleLog()
+                    .domain(d3.extent(geojson.features, (d) => {
+                        return d['properties']['POP' + year]
+                    }))
+
+                // if the data is scaled using linear scale
+                let linearScale = d3.scaleLinear()
+                    .domain(d3.extent(geojson.features, (d) => {
+                        return d['properties']['POP' + year]
+                    }))
+                svg.selectAll("#" + svgName + " path")
+                    .data(geojson.features)
+                    .enter()
+                    .append("path")
+                    .attr("d", d => geoPath_generator(d))
+                    .attr("fill", (d) => {
+                        let data = '';
+                        if (type == 'linear') {
+                            data = colorInterpolator(linearScale(d['properties']['POP' + year]));
+                        }
+                        else if (type == 'log') {
+                            data = colorInterpolator(logScale(d['properties']['POP' + year]));
+                        }
+                        else if (type == 'change') {
+                            const difference = d['properties']['POP' + year] - d['properties']['POP' + pastYear];
+                            data = colorInterpolator(logScale(difference));
+                        }
+                        else if (type == 'colorCounty') {
+                            console.log(fipsColors);
+                            let countyColor = '';
+                            fipsColors.forEach((element) => {
+                                if (element.fips == d.properties.FIPS_STCO) {
+                                    countyColor = element.color;
+                                }
+                            });
+                            console.log(countyColor);
+                            data = countyColor;
+                        }
+                        return data;
+                    })
+                    .on("mouseenter", (m, d) => {
+                        let countyFIPS = d.properties.FIPS_STCO;
+
+
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+
+                        tooltip.html(d['properties']['TOWN'])
+                            .style("left", m.clientX + "px")
+                            .style("top", m.clientY + "px");
+                        if (type == 'colorCounty') {
+                            d3.selectAll("#" + svgName + " path").attr("fill", (d) => {
+                                if (d.properties.FIPS_STCO == countyFIPS) {
+                                    return "lightbrown";
+                                } else {
+                                    let countyColor = '';
+                                    fipsColors.forEach((element) => {
+                                        if (element.fips == d.properties.FIPS_STCO) {
+                                            countyColor = element.color;
+                                        }
+                                    });
+                                    return countyColor;
+                                }
+                            })
+                        }
+
+                    })
+                    .on("mousemove", (m, d) => {
+                        tooltip.style("opacity", .9)
+                        let getCounty = d.properties.FIPS_STCO;
+                        let pop_data = {
+                            POP1980: { name: "Population 1980: ", value: 0 },
+                            POP1990: { name: "Population 1990: ", value: 0 },
+                            POP2000: { name: "Population 2000: ", value: 0 },
+                            POP2010: { name: "Population 2010: ", value: 0 }
+                        };
+                        topo_data.objects.ma.geometries.forEach((d) => {
+                            if (d.properties.FIPS_STCO == getCounty) {
+                                pop_data.POP1980.value = pop_data.POP1980.value + d.properties.POP1980;
+                                pop_data.POP1990.value = pop_data.POP1990.value + d.properties.POP1990;
+                                pop_data.POP2000.value = pop_data.POP2000.value + d.properties.POP2000;
+                                pop_data.POP2010.value = pop_data.POP2010.value + d.properties.POP2010;
+                            }
+                        });
+                        d3.select("#pop").style("visibility", "visible")
+                            .selectAll("p")
+                            .data(Object.values(pop_data))
+                            .enter()
+                            .append("p")
+                            .text((d) => {
+                                return d.name + d.value
+                            });
+                    })
+                    .on("mouseleave", (m, d) => {
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", 0);
+                        if (type == 'colorCounty') {
+                            d3.selectAll("#" + svgName + " path").attr("fill", (d) => {
+                                let countyColor = '';
+                                fipsColors.forEach((element) => {
+                                    if (element.fips == d.properties.FIPS_STCO) {
+                                        countyColor = element.color;
+                                    }
+                                });
+                                return countyColor;
+                            })
+                            d3.select("#pop").style("visibility", "hidden")
+                                .selectAll("p").remove();
+                        }
+                    })
+            }
+
+            createGeo('1980', svg1980, 'svg1980', 'log');
+            createGeo('2010', svgChange, 'svgChange', 'change', '2000');
+            createGeo('2010', svgCounty, 'svgCounty', 'colorCounty', '2000');
+
         })
     </script>
+    <div class="center">
+        <h1>Major Assignment 2</h1>
+        <h3>Patrick Lee</h3>
+    </div>
+
+    <div class="center">
+        <h4>Population 1980</h4>
+        <div id="svg1980"></div>
+
+        <h4>Population Change 2000-2010</h4>
+        <div id="svgChange"></div>
+
+        <div id="pop"></div>
+        <h4>Color Counties 2000-2010</h4>
+        <div id="svgCounty"></div>
+
+        <div id="tooltip" class="tooltip"></div>
+    </div>
+
+
 </body>
 
 </html>
